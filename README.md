@@ -1,0 +1,1 @@
+Library implements ASTM 1381 protocol for Delphi
