@@ -99,6 +99,24 @@ begin
  closefile(f);
 end;
 
+{$IF CompilerVersion < 18.0}
+procedure WriteLog(const s: AnsiString); overload;
+var
+ f: textfile;
+begin
+ WriteLogStrCriticalSection.Enter;
+ try
+  AssignFile(f, 'log.txt');
+{$I-}
+  Append(f);
+  WriteLn(f, AnsiString(DateTimeToStr(Now) + ' ') + s);
+  CloseFile(f);
+{$I+}
+ finally
+  WriteLogStrCriticalSection.Leave;
+ end;
+end;
+{$ELSE}
 procedure WriteLog(const s: string); overload;
 var
  f: textfile;
@@ -115,6 +133,7 @@ begin
   WriteLogStrCriticalSection.Leave;
  end;
 end;
+{$ENDIF}
 
 function CopyLim(const s: AnsiString; StrBeg, StrEnd: integer): AnsiString;
 begin
