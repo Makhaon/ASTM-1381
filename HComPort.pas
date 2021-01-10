@@ -170,7 +170,12 @@ begin
   if evBreak in Owner.FEvents then
     AMask := AMask or EV_BREAK;
   SetCommMask(Owner.ComHandle, AMask);
-  Resume;
+  {$IF CompilerVersion < 21.0}
+  Resume();
+  {$ELSE}
+  Start();
+  {$ENDIF}
+
 end;
 
 procedure TComThread.Execute;
