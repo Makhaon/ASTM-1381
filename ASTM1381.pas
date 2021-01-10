@@ -3,7 +3,7 @@ unit ASTM1381;
 interface
 
 uses
- HComPort, SysUtils, Classes, Forms, StrUtils, SyncObjs, TypInfo, AnsiStrings;
+ HComPort, SysUtils, Classes, Forms, StrUtils, SyncObjs, TypInfo{$IF CompilerVersion < 18.0}, AnsiStrings{$ENDIF};
 
 const
  ACK = 6;
@@ -15,7 +15,7 @@ const
  STX = 2;
  EOT = 4;
  CR = 13;
- 
+
  C_ACK = AnsiChar(6);
  C_ENQ = AnsiChar(5);
  C_ETB = AnsiChar(23);
@@ -80,14 +80,14 @@ type
   property HSerialPort: THSerialPort read FHSerialPort;
   property TransferState: TTransferState read FTransferState write SetTransferState;
  end;
- 
+
 implementation
 
 uses Math;
 
 var
  WriteLogStrCriticalSection: TCriticalSection;
- 
+
 procedure CreateLogFile;
 var
  f: textfile;
@@ -99,6 +99,7 @@ begin
  closefile(f);
 end;
 
+{$IF CompilerVersion < 18.0}
 procedure WriteLog(const s: AnsiString); overload;
 var
  f: textfile;
@@ -115,6 +116,24 @@ begin
   WriteLogStrCriticalSection.Leave;
  end;
 end;
+{$ELSE}
+procedure WriteLog(const s: string); overload;
+var
+ f: textfile;
+begin
+ WriteLogStrCriticalSection.Enter;
+ try
+  AssignFile(f, 'log.txt');
+{$I-}
+  Append(f);
+  WriteLn(f, DateTimeToStr(Now) + ' ' + s);
+  CloseFile(f);
+{$I+}
+ finally
+  WriteLogStrCriticalSection.Leave;
+ end;
+end;
+{$ENDIF}
 
 function CopyLim(const s: AnsiString; StrBeg, StrEnd: integer): AnsiString;
 begin
@@ -123,7 +142,11 @@ end;
 
 function ReplReturns(const s: AnsiString): AnsiString;
 begin
+{$IF CompilerVersion < 18.0}
  Result := AnsiReplaceStr(AnsiReplaceStr(s, AnsiChar($0D), AnsiString('#$0D')), AnsiChar($0A), AnsiString('#$0A'));
+{$ELSE}
+ Result := AnsiString(StringReplace(StringReplace(string(s), Char($0D), '#$0D', [rfReplaceAll]), Char($0A), '#$0A', [rfReplaceAll]));
+{$ENDIF}
 end;
 
 { TASTM1381Transfer }
@@ -198,7 +221,11 @@ var
  s1: AnsiString;
  BegStr, EndStr: Integer;
 begin
+{$IF CompilerVersion < 18.0}
  WriteLog(AnsiString('GetCrc ') + ReplReturns(s));
+{$ELSE}
+ WriteLog('GetCrc ' + string(ReplReturns(s)));
+{$ENDIF}
  BegStr := Max(Pos(C_ETX, s), Pos(C_ETB, s));
  EndStr := PosEx(C_CR, string(s), BegStr);
  s1 := CopyLim(s, BegStr + 1, EndStr - 1);
@@ -241,7 +268,11 @@ begin
  FHSerialPort.ReadString(s, ResvSize);
  //if Assigned(OnByteReceived) then
  //  OnByteReceived(s);
+{$IF CompilerVersion < 18.0}
  WriteLog(AnsiString('State on Rx: ' + GetEnumName(TypeInfo(TTransferState), Integer(TransferState))));
+{$ELSE}
+ WriteLog('State on Rx: ' + GetEnumName(TypeInfo(TTransferState), Integer(TransferState)));
+{$ENDIF}
  if Length(s) = 0 then
  begin
   WriteLog('Rx null');
@@ -305,7 +336,11 @@ begin
     end;
   else
    begin
+{$IF CompilerVersion < 18.0}
     WriteLog('Rx ' + ReplReturns(s));
+{$ELSE}
+    WriteLog('Rx ' + string(ReplReturns(s)));
+{$ENDIF}
     FLastPacket := FLastPacket + s;
     s := '';
    end;
@@ -410,8 +445,7 @@ end;
 
 procedure TASTM1381Transfer.SetTransferState(const Value: TTransferState);
 begin
- WriteLog('Set state from: ' + GetEnumName(TypeInfo(TTransferState), Integer(FTransferState)) + ' to: ' +
-  GetEnumName(TypeInfo(TTransferState), Integer(Value)));
+ WriteLog('Set state from: ' + GetEnumName(TypeInfo(TTransferState), Integer(FTransferState)) + ' to: ' + GetEnumName(TypeInfo(TTransferState), Integer(Value)));
  FTransferState := Value;
 end;
 
